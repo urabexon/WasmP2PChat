@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"syscall/js"
 
-	// "github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3"
 	// "github.com/urabexon/WasmP2PChat/"
 )
 
@@ -40,6 +40,27 @@ func shortHash(now time.Time) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))[:7], nil
+}
+
+func onMessage() func(webrtc.DataChannelMessage) {
+	return func(msg webrtc.DataChannelMessage) {
+		if msg.IsString {
+			logElem(fmt.Sprintf("[Any]: %s\n", msg.Data))
+		}
+	}
+}
+
+func logElem(msg string) {
+	el := getElementByID("logs")
+	el.Set("innerHTML", el.Get("innerHTML").String()+msg)
+}
+
+func handleError() {
+	logElem("[Sys]: Maybe Any left, Please restart\n")
+}
+
+func getElementByID(id string) js.Value {
+	return js.Global().Get("document").Call("getElementById", id)
 }
 
 func main() {
