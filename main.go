@@ -94,6 +94,19 @@ func main() {
 			}
 			defer ws.Close(websocket.StatusNormalClosure, "close connection")
 
+			if err := ws.Write(context.Background(), websocket.MessageText, reqMsg); err != nil {
+				log.Fatal(err)
+			}
+			logElem("[Sys]: Waiting match...\n")
+			for {
+				if err := wsjson.Read(context.Background(), ws, &resMsg); err != nil {
+					log.Fatal(err)
+					break
+				}
+				if resMsg.Type == "MATCH" {
+					break
+				}
+			}
 			
 		}
 	}
