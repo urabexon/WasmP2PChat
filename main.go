@@ -83,8 +83,20 @@ func main() {
 			dc.Close()
 		}
 	}()
+
 	var conn *ayame.Connection
 	connected := make(chan bool)
+	js.Global().Set("startNewChat", js.FuncOf(func(_ js.Value, _ []js.Value) interface{} {
+		go func() {
+			ws, _, err := websocket.Dial(context.Background(), mmURL.String(), nil)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer ws.Close(websocket.StatusNormalClosure, "close connection")
+
+			
+		}
+	}
 
 	// fmt.Println("Hello, World!")
 	select {}
