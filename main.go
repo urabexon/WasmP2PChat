@@ -121,11 +121,31 @@ func main() {
 					log.Printf("CreateDataChannel: label=%s", dc.Label())
 					dc.OnMessage(onMessage())
 				})
-				
+				conn.OnConnect(func() {
+					logElem("[Sys]: Matching! Start P2P chat not via server\n")
+					conn.CloseWebSocketConnection()
+					connected <- true
+				})
+				conn.OnDataChannel(func(c *webrtc.DataChannel) {
+					log.Printf("OnDataChannel: label=%s", c.Label())
+					if dc == nil {
+						dc = c
+					}
+					dc.OnMessage(onMessage())
+				})
+				if err := conn.Connect(); err != nil {
+					log.Fatal("Failed to connect Ayame", err)
+				}
+				select {
+				case <-connected:
+					return
+				}
 			}
-		}
-	}
+		}()
+		return js.Undefined()
+	}))
+	
 
-	// fmt.Println("Hello, World!")
+
 	select {}
 }
