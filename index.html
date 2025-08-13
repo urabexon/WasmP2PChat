@@ -7,13 +7,23 @@
     <link rel="stylesheet" href="https://cdn.rawgit.com/Chalarangelo/mini.css/v3.0.1/dist/mini-default.min.css">
 </head>
 <body>
-    <h1>WasmP2PChat</h1>
-    <script src="wasm_exec.js"></script>
-    <script>
-        const go = new Go();
-        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
-            go.run(result.instance);
-        });
-    </script>
+    <header class="sticky row">
+        <h4>WasmP2PChat</h4>
+    </header>
+    <div>
+        <p><button onclick="window.startNewChat()" class="secondary">START</button></p>
+        <input id="message" type="text" value="Hello 👋"></input>
+        <button onclick="window.sendMessage()" class="primary">SEND</button>
+        <h4>RECORD</h4>
+        <textarea style="height:600px;width:600px;" id="logs" disabled type="text" value=""></textarea>
+    </div>
 </body>
 </html>
+
+<script src="wasm_exec.js"></script>
+<script>
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
+        go.run(result.instance);
+    });
+</script>

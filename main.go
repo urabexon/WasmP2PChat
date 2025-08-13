@@ -11,9 +11,13 @@ import (
 	"log"
 	"net/url"
 	"syscall/js"
+	"time"
 
 	"github.com/pion/webrtc/v3"
-	// "github.com/urabexon/WasmP2PChat/"
+	"github.com/urabexon/WasmP2PChat/go-ayame"
+
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 var (
@@ -146,7 +150,21 @@ func main() {
 	}))
 	js.Global().Set("sendMessage", js.FuncOf(func(_ js.Value, _ []js.Value) interface{} {
 		go func() {
-
+			el := getElementByID("message")
+			message := el.Get("value").String()
+			if message == "" {
+				js.Global().Call("alert", "Message must not be empty")
+				return
+			}
+			if dc == nil {
+				return
+			}
+			if err := dc.SendText(message); err != nil {
+				handleError()
+				return
+			}
+			logElem(fmt.Sprintf("[You]: %s\n", message))
+			el.Set("value", "")
 		}()
 		return js.Undefined()
 	}))
