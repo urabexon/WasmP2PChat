@@ -144,8 +144,11 @@ func main() {
 		}()
 		return js.Undefined()
 	}))
-	
+	js.Global().Set("sendMessage", js.FuncOf(func(_ js.Value, _ []js.Value) interface{} {
+		go func() {
 
-
+		}()
+		return js.Undefined()
+	}))
 	select {}
 }
