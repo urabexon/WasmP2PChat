@@ -107,7 +107,22 @@ func main() {
 					break
 				}
 			}
-			
+			ws.Close(websocket.StatusNormalClosure, "close connection")
+			if resMsg.Type == "MATCH" {
+				conn = ayame.NewConnection(signalingURL.String(), resMsg.RoomID, ayame.DefaultOptions(), false, false)
+				conn.OnOpen(func(metadata *interface{}) {
+					log.Println("Open")
+					var err error
+					dc, err = conn.CreateDataChannel("matchmaking-example", nil)
+					if err != nil && err != fmt.Errorf("client does not exist") {
+						log.Printf("CreateDataChannel error: %v", err)
+						return
+					}
+					log.Printf("CreateDataChannel: label=%s", dc.Label())
+					dc.OnMessage(onMessage())
+				})
+				
+			}
 		}
 	}
 
