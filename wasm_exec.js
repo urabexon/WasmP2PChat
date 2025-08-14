@@ -310,6 +310,48 @@
 						storeValue(sp + 32, result);
 					},
 
+                    // func valueSet(v ref, p string, x ref)
+					"syscall/js.valueSet": (sp) => {
+						sp >>>= 0;
+						Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
+					},
+
+                    // func valueDelete(v ref, p string)
+					"syscall/js.valueDelete": (sp) => {
+						sp >>>= 0;
+						Reflect.deleteProperty(loadValue(sp + 8), loadString(sp + 16));
+					},
+
+                    // func valueIndex(v ref, i int) ref
+					"syscall/js.valueIndex": (sp) => {
+						sp >>>= 0;
+						storeValue(sp + 24, Reflect.get(loadValue(sp + 8), getInt64(sp + 16)));
+					},
+
+                    // valueSetIndex(v ref, i int, x ref)
+					"syscall/js.valueSetIndex": (sp) => {
+						sp >>>= 0;
+						Reflect.set(loadValue(sp + 8), getInt64(sp + 16), loadValue(sp + 24));
+					},
+
+                    // func valueCall(v ref, m string, args []ref) (ref, bool)
+					"syscall/js.valueCall": (sp) => {
+						sp >>>= 0;
+						try {
+							const v = loadValue(sp + 8);
+							const m = Reflect.get(v, loadString(sp + 16));
+							const args = loadSliceOfValues(sp + 32);
+							const result = Reflect.apply(m, v, args);
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
+							storeValue(sp + 56, result);
+							this.mem.setUint8(sp + 64, 1);
+						} catch (err) {
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
+							storeValue(sp + 56, err);
+							this.mem.setUint8(sp + 64, 0);
+						}
+					},
+
                     
                 }
             }
