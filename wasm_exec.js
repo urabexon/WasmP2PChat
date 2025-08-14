@@ -413,10 +413,73 @@
 						this.mem.setUint8(sp + 24, (loadValue(sp + 8) instanceof loadValue(sp + 16)) ? 1 : 0);
 					},
 
-                    
-                }
-            }
+                    // func copyBytesToGo(dst []byte, src ref) (int, bool)
+					"syscall/js.copyBytesToGo": (sp) => {
+						sp >>>= 0;
+						const dst = loadSlice(sp + 8);
+						const src = loadValue(sp + 32);
+						if (!(src instanceof Uint8Array || src instanceof Uint8ClampedArray)) {
+							this.mem.setUint8(sp + 48, 0);
+							return;
+						}
+						const toCopy = src.subarray(0, dst.length);
+						dst.set(toCopy);
+						setInt64(sp + 40, toCopy.length);
+						this.mem.setUint8(sp + 48, 1);
+					},
 
+                    // func copyBytesToJS(dst ref, src []byte) (int, bool)
+					"syscall/js.copyBytesToJS": (sp) => {
+						sp >>>= 0;
+						const dst = loadValue(sp + 8);
+						const src = loadSlice(sp + 16);
+						if (!(dst instanceof Uint8Array || dst instanceof Uint8ClampedArray)) {
+							this.mem.setUint8(sp + 48, 0);
+							return;
+						}
+						const toCopy = src.subarray(0, dst.length);
+						dst.set(toCopy);
+						setInt64(sp + 40, toCopy.length);
+						this.mem.setUint8(sp + 48, 1);
+					},
+
+                    "debug": (value) => {
+						console.log(value);
+					},
+                }
+            };
+        }
+
+        async run(instance) {
+            if (!(instance instanceof WebAssembly.Instance)) {
+				throw new Error("Go.run: WebAssembly.Instance expected");
+			}
+            this._inst = instance;
+			this.mem = new DataView(this._inst.exports.mem.buffer);
+            this._values = [
+                NaN,
+                0,
+                null,
+                true,
+                false,
+                globalThis,
+                this,
+            ];
+            this._goRefCounts = new Array(this._values.length).fill(Infinity);
+            this._ids = new Map([
+                [0, 1],
+                [null, 2],
+				[true, 3],
+				[false, 4],
+				[globalThis, 5],
+				[this, 6],
+            ]);
+            this._idPool = [];
+            this.exited = false;
+
+            // Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
+			let offset = 4096;
+            
         }
     }
 })();
