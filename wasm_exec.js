@@ -352,6 +352,67 @@
 						}
 					},
 
+                    // func valueInvoke(v ref, args []ref) (ref, bool)
+					"syscall/js.valueInvoke": (sp) => {
+						sp >>>= 0;
+						try {
+							const v = loadValue(sp + 8);
+							const args = loadSliceOfValues(sp + 16);
+							const result = Reflect.apply(v, undefined, args);
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
+							storeValue(sp + 40, result);
+							this.mem.setUint8(sp + 48, 1);
+						} catch (err) {
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
+							storeValue(sp + 40, err);
+							this.mem.setUint8(sp + 48, 0);
+						}
+					},
+
+                    // func valueNew(v ref, args []ref) (ref, bool)
+					"syscall/js.valueNew": (sp) => {
+						sp >>>= 0;
+						try {
+							const v = loadValue(sp + 8);
+							const args = loadSliceOfValues(sp + 16);
+							const result = Reflect.construct(v, args);
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
+							storeValue(sp + 40, result);
+							this.mem.setUint8(sp + 48, 1);
+						} catch (err) {
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
+							storeValue(sp + 40, err);
+							this.mem.setUint8(sp + 48, 0);
+						}
+					},
+
+                    // func valueLength(v ref) int
+					"syscall/js.valueLength": (sp) => {
+						sp >>>= 0;
+						setInt64(sp + 16, parseInt(loadValue(sp + 8).length));
+					},
+
+                    // valuePrepareString(v ref) (ref, int)
+					"syscall/js.valuePrepareString": (sp) => {
+						sp >>>= 0;
+						const str = encoder.encode(String(loadValue(sp + 8)));
+						storeValue(sp + 16, str);
+						setInt64(sp + 24, str.length);
+					},
+
+                    // valueLoadString(v ref, b []byte)
+					"syscall/js.valueLoadString": (sp) => {
+						sp >>>= 0;
+						const str = loadValue(sp + 8);
+						loadSlice(sp + 16).set(str);
+					},
+
+                    // func valueInstanceOf(v ref, t ref) bool
+					"syscall/js.valueInstanceOf": (sp) => {
+						sp >>>= 0;
+						this.mem.setUint8(sp + 24, (loadValue(sp + 8) instanceof loadValue(sp + 16)) ? 1 : 0);
+					},
+
                     
                 }
             }
