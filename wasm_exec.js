@@ -182,7 +182,31 @@
 				this.mem.setUint32(addr, id, true);
 			}
 
-            
+            const loadSlice = (addr) => {
+                const array = getInt64(addr + 0);
+				const len = getInt64(addr + 8);
+				return new Uint8Array(this._inst.exports.mem.buffer, array, len);
+            }
+
+            const loadSliceOfValues = (addr) => {
+                const array = getInt64(addr + 0);
+				const len = getInt64(addr + 8);
+				const a = new Array(len);
+				for (let i = 0; i < len; i++) {
+					a[i] = loadValue(array + i * 8);
+				}
+				return a;
+            }
+
+            const loadString = (addr) => {
+				const saddr = getInt64(addr + 0);
+				const len = getInt64(addr + 8);
+				return decoder.decode(new DataView(this._inst.exports.mem.buffer, saddr, len));
+			}
+
+            const timeOrigin = Date.now() - performance.now();
+        
+
         }
     }
 })();
