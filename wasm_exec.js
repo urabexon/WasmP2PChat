@@ -97,6 +97,91 @@
 					console.warn("exit code:", code);
 				}
 			};
+            this._exitPromise = new Promise((resolve) => {
+				this._resolveExitPromise = resolve;
+			});
+			this._pendingEvent = null;
+			this._scheduledTimeouts = new Map();
+			this._nextCallbackTimeoutID = 1;
+
+            const setInt64 = (addr, v) => {
+				this.mem.setUint32(addr + 0, v, true);
+				this.mem.setUint32(addr + 4, Math.floor(v / 4294967296), true);
+			}
+
+            const setInt32 = (addr, v) => {
+				this.mem.setUint32(addr + 0, v, true);
+			}
+
+            const getInt64 = (addr) => {
+				const low = this.mem.getUint32(addr + 0, true);
+				const high = this.mem.getInt32(addr + 4, true);
+				return low + high * 4294967296;
+			}
+
+            const loadValue = (addr) => {
+				const f = this.mem.getFloat64(addr, true);
+				if (f === 0) {
+					return undefined;
+				}
+				if (!isNaN(f)) {
+					return f;
+				}
+
+				const id = this.mem.getUint32(addr, true);
+				return this._values[id];
+			}
+
+            const storeValue = (addr, v) => {
+				const nanHead = 0x7FF80000;
+
+				if (typeof v === "number" && v !== 0) {
+					if (isNaN(v)) {
+						this.mem.setUint32(addr + 4, nanHead, true);
+						this.mem.setUint32(addr, 0, true);
+						return;
+					}
+					this.mem.setFloat64(addr, v, true);
+					return;
+				}
+
+				if (v === undefined) {
+					this.mem.setFloat64(addr, 0, true);
+					return;
+				}
+
+				let id = this._ids.get(v);
+				if (id === undefined) {
+					id = this._idPool.pop();
+					if (id === undefined) {
+						id = this._values.length;
+					}
+					this._values[id] = v;
+					this._goRefCounts[id] = 0;
+					this._ids.set(v, id);
+				}
+				this._goRefCounts[id]++;
+				let typeFlag = 0;
+				switch (typeof v) {
+					case "object":
+						if (v !== null) {
+							typeFlag = 1;
+						}
+						break;
+					case "string":
+						typeFlag = 2;
+						break;
+					case "symbol":
+						typeFlag = 3;
+						break;
+					case "function":
+						typeFlag = 4;
+						break;
+				}
+				this.mem.setUint32(addr + 4, nanHead | typeFlag, true);
+				this.mem.setUint32(addr, id, true);
+			}
+
             
         }
     }
