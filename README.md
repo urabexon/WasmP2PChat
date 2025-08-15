@@ -1,22 +1,14 @@
-# WasmP2P 🛰️
+# WasmP2PChat 🛰️
 
 A chat application that utilizes the WebRTC P2P DataChannel, implemented with Go WebAssembly, allowing you to match and converse with random strangers.
 
-## build
+## Available Languages / Langues disponibles / 言語選択 🌍
 
-```bash
-GOOS=js GOARCH=wasm go build -o main.wasm
-# 初回のみ
-curl -O https://raw.githubusercontent.com/golang/go/master/misc/wasm/wasm_exec.js
-# サーバー起動
-python3 -m http.server 8080
-# アクセス
-open http://localhost:8080
+- English  [README.en.md](/README.en.md)
+- français [README.fr.md](/README.fr.md)
+- Japanese [README.ja.md](/README.ja.md)
 
+---
 
-
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./wasm_exec.js
-GOOS=js GOARCH=wasm go build -o main.wasm
-python3 -m http.server 8080
-
-```
+## License 📄
+This project is licensed under the MIT License.
