@@ -153,10 +153,12 @@ func main() {
 					}
 					log.Printf("CreateDataChannel: label=%s", dc.Label())
 					dc.OnMessage(onMessage())
+					dc.OnOpen(func() {
+				        logElem("[Sys]: DataChannel OPEN — 送受信できます\n")
+				    })
 				})
 				conn.OnConnect(func() {
-					logElem("[Sys]: Matching! Start P2P chat not via server\n")
-					conn.CloseWebSocketConnection()
+					logElem("[Sys]: Matching! (signaling open) — ICE候補交換中...\n")
 					connected <- true
 				})
 				conn.OnDataChannel(func(c *webrtc.DataChannel) {
@@ -165,6 +167,9 @@ func main() {
 						dc = c
 					}
 					dc.OnMessage(onMessage())
+					dc.OnOpen(func() {
+				        logElem("[Sys]: DataChannel OPEN (remote) — 送受信できます\n")
+				    })
 				})
 				if err := conn.Connect(); err != nil {
 				    logElem(fmt.Sprintf("[Err]: Failed to connect Ayame: %v\n", err))
@@ -186,7 +191,7 @@ func main() {
 				js.Global().Call("alert", "Message must not be empty")
 				return
 			}
-			if dc == nil {
+			if dc == nil || dc.ReadyState() != webrtc.DataChannelStateOpen {
 			    js.Global().Call("alert", "未接続です。まず START を押してマッチングしてください。")
 			    return
             }
