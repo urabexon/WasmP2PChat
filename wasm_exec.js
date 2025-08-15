@@ -479,7 +479,52 @@
 
             // Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
 			let offset = 4096;
-            
+
+            const strPtr = (str) => {
+				const ptr = offset;
+				const bytes = encoder.encode(str + "\0");
+				new Uint8Array(this.mem.buffer, offset, bytes.length).set(bytes);
+				offset += bytes.length;
+				if (offset % 8 !== 0) {
+					offset += 8 - (offset % 8);
+				}
+				return ptr;
+			};
+
+            const argc = this.argv.length;
+
+            const argvPtrs = [];
+			this.argv.forEach((arg) => {
+				argvPtrs.push(strPtr(arg));
+			});
+			argvPtrs.push(0);
+
+            const keys = Object.keys(this.env).sort();
+			keys.forEach((key) => {
+				argvPtrs.push(strPtr(`${key}=${this.env[key]}`));
+			});
+			argvPtrs.push(0);
+
+            const argv = offset;
+			argvPtrs.forEach((ptr) => {
+				this.mem.setUint32(offset, ptr, true);
+				this.mem.setUint32(offset + 4, 0, true);
+				offset += 8;
+			});
+
+            const wasmMinDataAddr = 4096 + 8192;
+			if (offset >= wasmMinDataAddr) {
+				throw new Error("total length of command line and environment variables exceeds limit");
+			}
+
+			this._inst.exports.run(argc, argv);
+			if (this.exited) {
+				this._resolveExitPromise();
+			}
+			await this._exitPromise;
         }
+
+        
+
     }
 })();
