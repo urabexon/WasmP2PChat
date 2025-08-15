@@ -38,6 +38,30 @@ type mmResMsg struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+func init() {
+	loc := js.Global().Get("location")
+	if loc.Truthy() {
+		proto := loc.Get("protocol").String() // "http:" or "https:"
+        if proto == "https:" {
+            wsScheme = "wss"
+        } else {
+            wsScheme = "ws"
+        }
+		host := loc.Get("host").String()
+		// JSから上書き可能: window.MATCHMAKING_ORIGIN / window.SIGNALING_ORIGIN
+        if v := js.Global().Get("MATCHMAKING_ORIGIN"); v.Truthy() {
+            matchmakingOrigin = v.String()
+        } else {
+            matchmakingOrigin = host
+        }
+        if v := js.Global().Get("SIGNALING_ORIGIN"); v.Truthy() {
+            signalingOrigin = v.String()
+        } else {
+            signalingOrigin = host
+        }
+	}
+}
+
 func shortHash(now time.Time) (string, error) {
 	h := sha256.New()
 	if _, err := h.Write([]byte(now.String())); err != nil {
@@ -55,8 +79,11 @@ func onMessage() func(webrtc.DataChannelMessage) {
 }
 
 func logElem(msg string) {
-	el := getElementByID("logs")
-	el.Set("innerHTML", el.Get("innerHTML").String()+msg)
+    el := getElementByID("logs")
+    // textarea は value を更新しないと表示されません
+    el.Set("value", el.Get("value").String()+msg)
+    // 自動スクロール
+    el.Set("scrollTop", el.Get("scrollHeight"))
 }
 
 func handleError() {
@@ -93,20 +120,21 @@ func main() {
 	js.Global().Set("startNewChat", js.FuncOf(func(_ js.Value, _ []js.Value) interface{} {
 		go func() {
 			ws, _, err := websocket.Dial(context.Background(), mmURL.String(), nil)
-			if err != nil {
-				log.Fatal(err)
-			}
+            if err != nil {
+                logElem(fmt.Sprintf("[Err]: matchmaking dial failed: %v\n", err))
+                return
+            }
 			defer ws.Close(websocket.StatusNormalClosure, "close connection")
-
 			if err := ws.Write(context.Background(), websocket.MessageText, reqMsg); err != nil {
-				log.Fatal(err)
-			}
+				logElem(fmt.Sprintf("[Err]: matchmaking write failed: %v\n", err))
+			    return
+	        }
 			logElem("[Sys]: Waiting match...\n")
 			for {
 				if err := wsjson.Read(context.Background(), ws, &resMsg); err != nil {
-					log.Fatal(err)
-					break
-				}
+					logElem(fmt.Sprintf("[Err]: matchmaking read failed: %v\n", err))
+                    break
+	            }
 				if resMsg.Type == "MATCH" {
 					break
 				}
@@ -138,7 +166,8 @@ func main() {
 					dc.OnMessage(onMessage())
 				})
 				if err := conn.Connect(); err != nil {
-					log.Fatal("Failed to connect Ayame", err)
+				    logElem(fmt.Sprintf("[Err]: Failed to connect Ayame: %v\n", err))
+				    return
 				}
 				select {
 				case <-connected:
@@ -157,8 +186,9 @@ func main() {
 				return
 			}
 			if dc == nil {
-				return
-			}
+			    js.Global().Call("alert", "未接続です。まず START を押してマッチングしてください。")
+			    return
+            }
 			if err := dc.SendText(message); err != nil {
 				handleError()
 				return

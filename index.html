@@ -15,13 +15,16 @@
         <input id="message" type="text" value="Hello 👋"></input>
         <button onclick="window.sendMessage()" class="primary">SEND</button>
         <h4>RECORD</h4>
-        <textarea style="height:600px;width:600px;" id="logs" disabled type="text" value=""></textarea>
+        <textarea style="height:600px;width:600px;" id="logs" readonly></textarea>
     </div>
 </body>
 </html>
 
 <script src="wasm_exec.js"></script>
 <script>
+    // window.MATCHMAKING_ORIGIN = "example.com:8081";
+    // window.SIGNALING_ORIGIN   = "example.com:8082";
+
     const go = new Go();
     WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
         go.run(result.instance);
