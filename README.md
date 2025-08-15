@@ -12,4 +12,11 @@ curl -O https://raw.githubusercontent.com/golang/go/master/misc/wasm/wasm_exec.j
 python3 -m http.server 8080
 # アクセス
 open http://localhost:8080
+
+
+
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./wasm_exec.js
+GOOS=js GOARCH=wasm go build -o main.wasm
+python3 -m http.server 8080
+
 ```
