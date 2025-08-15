@@ -524,7 +524,24 @@
 			await this._exitPromise;
         }
 
-        
+        _resume() {
+			if (this.exited) {
+				throw new Error("Go program has already exited");
+			}
+			this._inst.exports.resume();
+			if (this.exited) {
+				this._resolveExitPromise();
+			}
+		}
 
+        _makeFuncWrapper(id) {
+			const go = this;
+			return function () {
+				const event = { id: id, this: this, args: arguments };
+				go._pendingEvent = event;
+				go._resume();
+				return event.result;
+			};
+		}
     }
 })();
