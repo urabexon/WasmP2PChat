@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"nhooyr.io/websocket"
@@ -23,59 +24,75 @@ type mmResMsg struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-var queue = make(chan *websocket.Conn, 128)
-
 func shortID() string {
 	b := make([]byte, 4)
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
 
+var (
+	mu      sync.Mutex
+	waiting *websocket.Conn // いま待っている人（0か1）
+)
+
 func handleWS(w http.ResponseWriter, r *http.Request) {
-    // c, err := websocket.Accept(w, r, nil)
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-	    OriginPatterns: []string{"*"},
-	})
-    if err != nil {
-        // log.Println("ws accept:", err)
+	       OriginPatterns: []string{"*"},
+	   })
+	if err != nil {
 		log.Println("ws accept:", err, "origin:", r.Header.Get("Origin"))
+		return
+	}
+
+	var req mmReqMsg
+	if err := wsjson.Read(r.Context(), c, &req); err != nil {
+		log.Println("read:", err)
+		return
+	}
+	log.Printf("joined user=%s\n", req.UserID)
+
+	// 待機者がいなければ自分を待機にセットして終了
+	mu.Lock()
+	if waiting == nil {
+		waiting = c
+		mu.Unlock()
+		// 接続が切れるまで待つ（ページ閉じたら自動でDoneになる）
+		<-r.Context().Done()
+		mu.Lock()
+		if waiting == c {
+			waiting = nil
+		}
+		mu.Unlock()
+		c.Close(websocket.StatusNormalClosure, "left")
         return
-    }
-    defer c.Close(websocket.StatusInternalError, "server error")
+	}
 
-    var req mmReqMsg
-    if err := wsjson.Read(r.Context(), c, &req); err != nil {
-        log.Println("read:", err)
-        return
-    }
+	// 待機者がいればペアリング
+	partner := waiting
+	waiting = nil
+	mu.Unlock()
 
-    // 先に待っている人がいるか確認する
-    select {
-    case partner := <-queue:
-        // ペア成立
-        roomID := shortID()
-        now := time.Now()
-        res1 := mmResMsg{Type: "MATCH", RoomID: roomID, UserID: req.UserID, CreatedAt: now}
-        res2 := mmResMsg{Type: "MATCH", RoomID: roomID, UserID: "peer", CreatedAt: now}
+	roomID := shortID()
+	now := time.Now()
+	res1 := mmResMsg{Type: "MATCH", RoomID: roomID, UserID: req.UserID, CreatedAt: now}
+	res2 := mmResMsg{Type: "MATCH", RoomID: roomID, UserID: "peer", CreatedAt: now}
 
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-        defer cancel()
-        if err := wsjson.Write(ctx, c, res1); err != nil {
-            log.Println("write1:", err)
-            return
-        }
-        if err := wsjson.Write(ctx, partner, res2); err != nil {
-            log.Println("write2:", err)
-            return
-        }
-        c.Close(websocket.StatusNormalClosure, "ok")
-        partner.Close(websocket.StatusNormalClosure, "ok")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    default:
-        // 誰もいなければ待機に入る
-        queue <- c
-        <-r.Context().Done()
-    }
+	// 今来た人
+	if err := wsjson.Write(ctx, c, res1); err != nil {
+		log.Println("write to current:", err)
+		return
+	}
+	// 待機していた人
+	if err := wsjson.Write(ctx, partner, res2); err != nil {
+		log.Println("write to partner:", err)
+		return
+	}
+
+	log.Printf("matched room=%s\n", roomID)
+	// ここでサーバ側からは閉じない（クライアントが適宜閉じる）
 }
 
 func main() {

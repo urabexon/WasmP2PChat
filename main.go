@@ -135,12 +135,13 @@ func main() {
 					logElem(fmt.Sprintf("[Err]: matchmaking read failed: %v\n", err))
                     break
 	            }
+				logElem(fmt.Sprintf("[DBG]: received type=%s room=%s from matchmaking\n", resMsg.Type, resMsg.RoomID))
 				if resMsg.Type == "MATCH" {
 					break
 				}
 			}
 			ws.Close(websocket.StatusNormalClosure, "close connection")
-			if resMsg.Type == "MATCH" {
+			if resMsg.Type == "MATCH" && signalingOrigin != "" {
 				conn = ayame.NewConnection(signalingURL.String(), resMsg.RoomID, ayame.DefaultOptions(), false, false)
 				conn.OnOpen(func(metadata *interface{}) {
 					log.Println("Open")
